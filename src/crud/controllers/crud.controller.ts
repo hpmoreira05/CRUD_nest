@@ -8,15 +8,18 @@ import {
   Delete,
   Query,
   NotFoundException,
+  UseGuards,
 } from '@nestjs/common';
 import { CrudService } from '../providers/crud.service';
 import { CreateCrudDto } from '../dto/create-crud.dto';
 import { UpdateCrudDto } from '../dto/update-crud.dto';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @Controller('post')
 export class CrudController {
   constructor(private readonly crudService: CrudService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Body() data: CreateCrudDto) {
     const result = await this.crudService.create({ data });
@@ -28,6 +31,7 @@ export class CrudController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   async findAll(
     @Query('title') title: string,
@@ -54,6 +58,7 @@ export class CrudController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id') id: number) {
     const result = await this.crudService.findUnique(id);
@@ -67,6 +72,7 @@ export class CrudController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async update(@Param('id') id: number, @Body() data: UpdateCrudDto) {
     const postExists = await this.crudService.findUnique(+id);
@@ -84,6 +90,7 @@ export class CrudController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Param('id') id: number) {
     const postExists = await this.crudService.findUnique(+id);

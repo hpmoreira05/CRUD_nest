@@ -16,3 +16,10 @@ model Publications {
   content   String?
   published Boolean? @default(false)
 }
+
+model User {
+  id       Int    @id @default(autoincrement())
+  name     String @unique
+  email    String
+  password String
+}
