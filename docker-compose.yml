@@ -1,0 +1,40 @@
+version: "3.7"
+
+services:
+  api:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+      target: base
+    restart: always
+    depends_on:
+      - postgres
+    expose:
+      - "3000"
+    ports:
+      - "3000:3000"
+    networks:
+      - api
+    command: yarn start:dev
+
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=arquiba
+      - POSTGRES_PASSWORD=arQuiba123
+      - POSTGRES_DB=arquiba
+    ports:
+      - "5433:5432"
+    volumes:
+      - db:/var/lib/postgresql/data
+    networks:
+      - api
+
+
+volumes:
+  db:
+
+networks:
+  api:
+    driver: bridge
