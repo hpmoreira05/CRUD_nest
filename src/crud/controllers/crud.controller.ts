@@ -9,11 +9,14 @@ import {
   Query,
   NotFoundException,
   UseGuards,
+  Request,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { CrudService } from '../providers/crud.service';
 import { CreateCrudDto } from '../dto/create-crud.dto';
 import { UpdateCrudDto } from '../dto/update-crud.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { Publications, User } from '@prisma/client';
 
 @Controller('post')
 export class CrudController {
@@ -21,8 +24,14 @@ export class CrudController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  async create(@Body() data: CreateCrudDto) {
-    const result = await this.crudService.create({ data });
+  async create(@Request() req: any, @Body() data: CreateCrudDto) {
+    const result = (await this.crudService.create({
+      data: {
+        ...data,
+        user: { connect: { id: req.user.id } },
+      },
+      include: { user: true },
+    })) as Publications & { user: User[] };
 
     return {
       status: 201,
@@ -59,6 +68,36 @@ export class CrudController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('myPosts')
+  async findAllMine(
+    @Request() req: any,
+    @Query('page') page: number,
+    @Query('perPage') perPage: number,
+  ) {
+    if (!page) page = 1;
+    if (!perPage) perPage = 10;
+
+    const result = await this.crudService.findMany({
+      where: {
+        userId: req.user.id,
+      },
+      skip: (+page - 1) * +perPage,
+      take: +perPage,
+    });
+
+    if (result.length === 0)
+      throw new NotFoundException('Você ainda não possui posts');
+
+    return {
+      status: 200,
+      message: 'Posts encontrados!',
+      page,
+      perPage,
+      result,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id') id: number) {
     const result = await this.crudService.findUnique(id);
@@ -74,10 +113,17 @@ export class CrudController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  async update(@Param('id') id: number, @Body() data: UpdateCrudDto) {
+  async update(
+    @Request() req: any,
+    @Param('id') id: number,
+    @Body() data: UpdateCrudDto,
+  ) {
     const postExists = await this.crudService.findUnique(+id);
 
-    if (!postExists) throw new NotFoundException('Post não existee');
+    if (!postExists) throw new NotFoundException('Post não existe');
+    if (postExists.userId !== req.user.id)
+      throw new UnauthorizedException('Post não pertence ao usuário');
+
     const result = await this.crudService.update({
       where: { id: +id },
       data,
@@ -92,10 +138,13 @@ export class CrudController {
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  async remove(@Param('id') id: number) {
+  async remove(@Param('id') id: number, @Request() req: any) {
     const postExists = await this.crudService.findUnique(+id);
 
     if (!postExists) throw new NotFoundException('Post não existe');
+    if (postExists.userId !== req.user.id)
+      throw new UnauthorizedException('Post não pertence ao usuário');
+
     await this.crudService.remove(+id);
 
     return {
